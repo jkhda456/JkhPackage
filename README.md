@@ -1,2 +1,4 @@
 # JkhPackage
-Jkh's Package
+Jkh's multipurpose delphi component packages
+
+support D7
