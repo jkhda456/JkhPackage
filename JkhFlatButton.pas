@@ -451,6 +451,7 @@ begin
            Rect.Left := (Width div 2) - (TextBaseWidth div 2)-1;
            Rect.Top := Rect.Bottom+Margin;
            Rect.Bottom := Height-1;
+           Rect.Right := Rect.Left + TextBaseWidth;
         End
         Else
         Begin

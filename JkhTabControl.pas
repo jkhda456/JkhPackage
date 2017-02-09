@@ -548,7 +548,10 @@ begin
   // Result :=
   FPages.Insert(InsertPos, ATabSheet);
   Result := InsertPos;
-  If Tabs.Count <= 0 Then  Tabs.Add('');
+
+  // 결국 탭을 없애는건 그냥 이렇게 하는 수 밖에 없다.
+  If FGutterEnabled Then
+     If Tabs.Count <= 0 Then Tabs.Add('');
   //FPages.Move(Result, 0);
   //Result := 0;
 end;
@@ -639,7 +642,10 @@ var
   var
     LoopVar: Integer;
   begin
-    If DrawGutterWidth <= 0 Then Exit;
+    If DrawGutterWidth <= 0 Then
+    Begin
+       Exit;
+    End;
 
     Canvas.Brush.Color := GutterColor;
     Rect.Left := 0;
@@ -947,9 +953,15 @@ begin
 
   FGutterEnabled := Value;
   If FGutterEnabled Then
-     Tabs.Add('')
+  Begin
+     TabHeight := FGutterWidth;
+     Tabs.Add('');
+  End
   Else
+  Begin
+     TabHeight := 0;
      Tabs.Clear;
+  End;
 
   Invalidate;
 end;
@@ -964,7 +976,7 @@ procedure TJkhTabControl.SetGutterWidth(const Value: Integer);
 begin
   FGutterWidth := Value;
   // Left 모드니깐
-  TabHeight := Value;
+  TabHeight := Value
   //Invalidate;
 end;
 
