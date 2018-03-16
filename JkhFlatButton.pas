@@ -65,6 +65,7 @@ type
     FDisabledImage: TPicture;
     FFocusEnabled: Boolean;
     FFocused: Boolean;
+    FAutoResizeText: Boolean;
 
     procedure SetDown(const Value: Boolean);
     procedure SetFlat(const Value: Boolean);
@@ -94,6 +95,7 @@ type
     function GetHandle: THandle;
     procedure SetDisabledImage(const Value: TPicture);
     procedure SetFocused(const Value: Boolean);
+    procedure SetAutoResizeText(const Value: Boolean);
   protected
     FState: TButtonState;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
@@ -120,6 +122,7 @@ type
     property Image: TPicture read FImage write SetImage;
     property DisabledImage: TPicture read FDisabledImage write SetDisabledImage;
 
+    property AutoResizeText: Boolean read FAutoResizeText write SetAutoResizeText default True; 
     property Focused: Boolean read FFocused write SetFocused default False; 
     property Layout: TJkhButtonLayout read FLayout write SetLayout default blBottomLeft;
     property Anchors;
@@ -352,8 +355,10 @@ var
   TextBaseHeight,
   TextBaseWidth,
   Cx, Cy: Integer;
-  Rect: TRect;
+  GuardRect,
+  DrawRect: TRect;
   MonoImage: TBitmap;
+  AutoResizeLoop: Integer;
 begin
   inherited;
 
@@ -382,8 +387,12 @@ begin
 
   If Transparent and (Not Down) and (FState = bsExclusive) Then
      Canvas.Brush.Style := bsClear;
-     
+
   Canvas.Rectangle(0, 0, Width, Height);
+  If Flat Then
+     GuardRect := Rect(1, 1, Width-1, Height-1)
+  Else
+     GuardRect := Rect(0, 0, Width, Height);
 
   TextBaseHeight := Margin;
   If Caption <> '' Then
@@ -409,91 +418,134 @@ begin
            Cx := (Width div 2) - (Image.Width div 2);
            Cy := ((Height - TextBaseHeight) div 2) - (Image.Height div 2);
 
-           Rect.Left := Cx;
-           Rect.Top := Cy;
-           Rect.Right := Cx + Image.Width;
-           Rect.Bottom := Cy + Image.Height;
+           DrawRect.Left := Cx;
+           DrawRect.Top := Cy;
+           DrawRect.Right := Cx + Image.Width;
+           DrawRect.Bottom := Cy + Image.Height;
            If Not Enabled and Assigned(DisabledImage.Graphic) Then
-              Canvas.StretchDraw(Rect, DisabledImage.Graphic)
+              Canvas.StretchDraw(DrawRect, DisabledImage.Graphic)
            Else
-              Canvas.StretchDraw(Rect, Image.Graphic);
+              Canvas.StretchDraw(DrawRect, Image.Graphic);
 
-           Rect.Top := Rect.Bottom+Margin;
-           Rect.Bottom := Height-1;
+           DrawRect.Top := DrawRect.Bottom+Margin;
+           DrawRect.Bottom := Height-1;
         End
         Else
         Begin
-           Rect.Left := (Width div 2) - (TextBaseWidth div 2);
-           Rect.Top := (Height div 2) - (TextBaseHeight div 2);
-           Rect.Right := Rect.Left + TextBaseWidth;
-           Rect.Bottom := Rect.Top + TextBaseHeight;
+           DrawRect.Left := (Width div 2) - (TextBaseWidth div 2);
+           DrawRect.Top := (Height div 2) - (TextBaseHeight div 2);
+           DrawRect.Right := DrawRect.Left + TextBaseWidth;
+           DrawRect.Bottom := DrawRect.Top + TextBaseHeight;
         End;
 
-        Canvas.TextRect(Rect, Rect.Left, Rect.Top, Caption);
+        Canvas.TextRect(DrawRect, DrawRect.Left, DrawRect.Top, Caption);
      End;
 
      blBottomMiddle: // 하단 중앙에 캡션을 찍는다.
      Begin
+        // 폭보다 글자가 큰 상황이라면 자동으로 크기를 조정한다.
+        Cx := 4;
+        If TextBaseWidth + Cx >= Width Then
+        Begin
+           For AutoResizeLoop := 1 to 3 do
+           Begin
+              Canvas.Font.Size := Canvas.Font.Size - 1;
+
+              TextBaseSize := Canvas.TextExtent(Caption);
+              TextBaseHeight := Margin + TextBaseSize.cy;
+              TextBaseWidth := TextBaseSize.cx;
+
+              If TextBaseWidth <= 0 Then TextBaseWidth := 1;
+              If TextBaseWidth+Cx < Width Then Break;
+           End;
+        End;
+
         If Assigned(Image.Graphic) Then
         Begin
            Cx := (Width div 2) - (Image.Width div 2);
            Cy := ((Height - TextBaseHeight) div 2) - (Image.Height div 2);
 
-           Rect.Left := Cx;
-           Rect.Top := Cy;
-           Rect.Right := Cx + Image.Width;
-           Rect.Bottom := Cy + Image.Height;
+           DrawRect.Left := Cx;
+           DrawRect.Top := Cy;
+           DrawRect.Right := Cx + Image.Width;
+           DrawRect.Bottom := Cy + Image.Height;
            If Not Enabled and Assigned(DisabledImage.Graphic) Then
-              Canvas.StretchDraw(Rect, DisabledImage.Graphic)
+              Canvas.StretchDraw(DrawRect, DisabledImage.Graphic)
            Else
-              Canvas.StretchDraw(Rect, Image.Graphic);
+              Canvas.StretchDraw(DrawRect, Image.Graphic);
 
-           Rect.Left := (Width div 2) - (TextBaseWidth div 2)-1;
-           Rect.Top := Rect.Bottom+Margin;
-           Rect.Bottom := Height-1;
-           Rect.Right := Rect.Left + TextBaseWidth;
+           DrawRect.Left := (Width div 2) - (TextBaseWidth div 2)-1;
+           DrawRect.Top := DrawRect.Bottom+Margin;
+           DrawRect.Bottom := Height-1;
+           DrawRect.Right := DrawRect.Left + TextBaseWidth;
         End
         Else
         Begin
-           Rect.Left := (Width div 2) - (TextBaseWidth div 2);
-           Rect.Top := (Height div 2) - (TextBaseHeight div 2);
-           Rect.Right := Rect.Left + TextBaseWidth;
-           Rect.Bottom := Rect.Top + TextBaseHeight;
+           DrawRect.Left := (Width div 2) - (TextBaseWidth div 2);
+           DrawRect.Top := (Height div 2) - (TextBaseHeight div 2);
+           DrawRect.Right := DrawRect.Left + TextBaseWidth;
+           DrawRect.Bottom := DrawRect.Top + TextBaseHeight;
         End;
 
-        Canvas.TextRect(Rect, Rect.Left, Rect.Top, Caption);
+        GuardRect.Top := DrawRect.Top;
+        GuardRect.Bottom := DrawRect.Bottom;
+
+        Canvas.TextRect(GuardRect, DrawRect.Left, DrawRect.Top, Caption);
      End;
 
      blMiddleRight: // 정중앙 오른쪽에 캡션을 찍는다.
      Begin
+        Cx := 4;
+        If Assigned(Image.Graphic) Then
+           Cx := Cx + Image.Width;
+
+        // 폭보다 글자가 큰 상황이라면 자동으로 크기를 조정한다.
+        If TextBaseWidth + Cx >= Width Then
+        Begin
+           For AutoResizeLoop := 1 to 3 do
+           Begin
+              Canvas.Font.Size := Canvas.Font.Size - 1;
+
+              TextBaseSize := Canvas.TextExtent(Caption);
+              TextBaseHeight := Margin + TextBaseSize.cy;
+              TextBaseWidth := TextBaseSize.cx;
+
+              If TextBaseWidth <= 0 Then TextBaseWidth := 1;
+              If TextBaseWidth+Cx < Width Then Break;
+           End;
+        End;
+
         If Assigned(Image.Graphic) Then
         Begin
            Cx := ((Width - TextBaseWidth - Margin) div 2) - (Image.Width div 2);
            Cy := (Height div 2) - (Image.Height div 2);
 
-           Rect.Left := Cx;
-           Rect.Top := Cy;
-           Rect.Right := Cx + Image.Width;
-           Rect.Bottom := Cy + Image.Height;
+           DrawRect.Left := Cx;
+           DrawRect.Top := Cy;
+           DrawRect.Right := Cx + Image.Width;
+           DrawRect.Bottom := Cy + Image.Height;
            If Not Enabled and Assigned(DisabledImage.Graphic) Then
-              Canvas.StretchDraw(Rect, DisabledImage.Graphic)
+              Canvas.StretchDraw(DrawRect, DisabledImage.Graphic)
            Else
-              Canvas.StretchDraw(Rect, Image.Graphic);
+              Canvas.StretchDraw(DrawRect, Image.Graphic);
 
-           Rect.Left := Rect.Right + Margin-1;
-           Rect.Top := (Height div 2) - (TextBaseHeight div 2)+1;
-           Rect.Right := Rect.Left + TextBaseWidth;
-           Rect.Bottom := Rect.Top + TextBaseHeight;
+           DrawRect.Left := DrawRect.Right + Margin-1;
+           DrawRect.Top := (Height div 2) - (TextBaseHeight div 2)+1;
+           DrawRect.Right := DrawRect.Left + TextBaseWidth;
+           DrawRect.Bottom := DrawRect.Top + TextBaseHeight;
         End
         Else
         Begin
-           Rect.Left := (Width div 2) - (TextBaseWidth div 2);
-           Rect.Top := (Height div 2) - (TextBaseHeight div 2);
-           Rect.Right := Rect.Left + TextBaseWidth;
-           Rect.Bottom := Rect.Top + TextBaseHeight;
+           DrawRect.Left := (Width div 2) - (TextBaseWidth div 2);
+           DrawRect.Top := (Height div 2) - (TextBaseHeight div 2);
+           DrawRect.Right := DrawRect.Left + TextBaseWidth;
+           DrawRect.Bottom := DrawRect.Top + TextBaseHeight;
         End;
 
-        Canvas.TextRect(Rect, Rect.Left, Rect.Top, Caption);
+        GuardRect.Left := DrawRect.Left;
+        If GuardRect.Left <= 0 Then GuardRect.Left := 1;
+
+        Canvas.TextRect(GuardRect, DrawRect.Left, DrawRect.Top, Caption);
      End;
 
      blImageOnly: // 이미지만 찍는다.
@@ -503,14 +555,14 @@ begin
         Cx := ((Width - Margin) div 2) - (Image.Width div 2);
         Cy := (Height div 2) - (Image.Height div 2);
 
-        Rect.Left := Cx;
-        Rect.Top := Cy;
-        Rect.Right := Cx + Image.Width;
-        Rect.Bottom := Cy + Image.Height;
+        DrawRect.Left := Cx;
+        DrawRect.Top := Cy;
+        DrawRect.Right := Cx + Image.Width;
+        DrawRect.Bottom := Cy + Image.Height;
         If Not Enabled and Assigned(DisabledImage.Graphic) Then
-           Canvas.StretchDraw(Rect, DisabledImage.Graphic)
+           Canvas.StretchDraw(DrawRect, DisabledImage.Graphic)
         Else
-           Canvas.StretchDraw(Rect, Image.Graphic);
+           Canvas.StretchDraw(DrawRect, Image.Graphic);
      End;
 
      blLeftImageWithHint:
@@ -520,38 +572,45 @@ begin
            Cx := Spacing;
            Cy := Spacing;
 
-           Rect.Left := Cx;
-           Rect.Top := Cy;
-           Rect.Right := Cx + Image.Width;
-           Rect.Bottom := Cy + Image.Height;
+           DrawRect.Left := Cx;
+           DrawRect.Top := Cy;
+           DrawRect.Right := Cx + Image.Width;
+           DrawRect.Bottom := Cy + Image.Height;
            If Not Enabled and Assigned(DisabledImage.Graphic) Then
-              Canvas.StretchDraw(Rect, DisabledImage.Graphic)
+              Canvas.StretchDraw(DrawRect, DisabledImage.Graphic)
            Else
-              Canvas.StretchDraw(Rect, Image.Graphic);
+              Canvas.StretchDraw(DrawRect, Image.Graphic);
 
-           Rect.Left := Rect.Right + Margin;
-           Rect.Right := Rect.Left + TextBaseWidth;
-           Rect.Bottom := Rect.Top + TextBaseHeight;
+           DrawRect.Left := DrawRect.Right + Margin;
+           DrawRect.Right := DrawRect.Left + TextBaseWidth;
+           DrawRect.Bottom := DrawRect.Top + TextBaseHeight;
         End
         Else
         Begin
-           Rect.Left := Spacing;
-           Rect.Top := Spacing;
-           Rect.Right := Rect.Left + TextBaseWidth;
-           Rect.Bottom := Rect.Top + TextBaseHeight;
+           DrawRect.Left := Spacing;
+           DrawRect.Top := Spacing;
+           DrawRect.Right := DrawRect.Left + TextBaseWidth;
+           DrawRect.Bottom := DrawRect.Top + TextBaseHeight;
         End;
 
-        Canvas.Font.Style := [fsBold];
-        Canvas.TextRect(Rect, Rect.Left, Rect.Top, Caption);
+        GuardRect.Top := DrawRect.Top;
+        GuardRect.Bottom := DrawRect.Bottom;
+        GuardRect.Left := DrawRect.Left;
+        If GuardRect.Left <= 0 Then GuardRect.Left := 1;
 
-        TextBaseHeight := Rect.Bottom;
+        Canvas.Font.Style := [fsBold];
+        Canvas.TextRect(GuardRect, DrawRect.Left, DrawRect.Top, Caption);
+
+        TextBaseHeight := DrawRect.Bottom;
         TextBaseSize := Canvas.TextExtent(Hint);
 
-        Rect.Top := TextBaseHeight;
-        Rect.Right := Rect.Left + TextBaseSize.cx;
-        Rect.Bottom := Rect.Top + TextBaseSize.cy;
+        DrawRect.Top := TextBaseHeight;
+        DrawRect.Right := DrawRect.Left + TextBaseSize.cx;
+        DrawRect.Bottom := DrawRect.Top + TextBaseSize.cy;
+        GuardRect.Top := DrawRect.Top;
+        GuardRect.Bottom := DrawRect.Bottom;
         Canvas.Font.Style := [];
-        Canvas.TextRect(Rect, Rect.Left, Rect.Top, Hint);
+        Canvas.TextRect(GuardRect, DrawRect.Left, DrawRect.Top, Hint);
      End;
   End;
 
@@ -562,6 +621,12 @@ begin
      Canvas.Pen.Style := psDot;
      Canvas.Rectangle(DotMargin, DotMargin, Width-DotMargin, Height-DotMargin);
   End;
+end;
+
+procedure TJkhFlatButton.SetAutoResizeText(const Value: Boolean);
+begin
+  FAutoResizeText := Value;
+  Invalidate;
 end;
 
 procedure TJkhFlatButton.SetButtonColor(const Value: TColor);
@@ -685,3 +750,5 @@ begin
 end;
 
 end.
+
+
