@@ -42,7 +42,10 @@ type
   TJkhChartItemAlignPosition = (ciapLeftTop, ciapRightTop, ciapLeftBottom, ciapRightBottom, ciapCenter, ciapCenterTop, ciapCenterBottom, ciapLeftCenter, ciapRightCenter);
   TJkhChartValueDrawType = (cvdNone, cvdLinkedLine);
 
+  // 개별 항목
   TJkhChartValueToTextEvent = procedure(Sender: TObject; CurrentValue: Integer; var OutText: String) of object;
+  // 글로벌 항목
+  TJkhChartPrintItemEvent = procedure(Sender: TObject; PrintItemIdx, ValueIdx, ValueX, ValueY: Integer; var OutText: String) of object;
 
   TJkhChartValue = class(TCollectionItem)
   private
@@ -110,18 +113,21 @@ type
     FValueDrawType: TJkhChartValueDrawType;
     FValueDrawLineSize: Integer;
     FValueDrawColor: TGPColor;
+    FItemHint: String;
     procedure SetItemName(const Value: String);
     procedure SetItemIcon(const Value: TPicture);
     procedure SetItemValues(const Value: TJkhChartValueList);
     procedure SetValueDrawType(const Value: TJkhChartValueDrawType);
     procedure SetValueDrawLineSize(const Value: Integer);
     procedure SetValueDrawColor(const Value: DWORD);
+    procedure SetItemHint(const Value: String);
   protected
     function GetDisplayName: string; override;
   public
     constructor Create(Collection: TCollection); override;
     destructor Destroy; override;
   published
+    property ItemHint: String read FItemHint write SetItemHint; 
     property ItemName: String read FItemName write SetItemName;
     property ItemIcon: TPicture read FItemIcon write SetItemIcon;
     property ItemValues: TJkhChartValueList read FItemValues write SetItemValues;
@@ -224,6 +230,7 @@ type
     FDrawLegend: Boolean;
     FLegendSize: Integer;
     FLegendFont: TFont;
+    FOnPrintItemEvent: TJkhChartPrintItemEvent;
     procedure SetChartItem(const Value: TJkhChartItemList);
     procedure SetChartEnvItem(const Value: TJkhChartEnvItemList);
     procedure SetDrawLegend(const Value: Boolean);
@@ -307,6 +314,8 @@ type
     property OnStartDock;
     property OnStartDrag;
     property OnUnDock;
+
+    property OnPrintItemEvent: TJkhChartPrintItemEvent read FOnPrintItemEvent write FOnPrintItemEvent;
   end;
 
 procedure Register;
@@ -428,6 +437,11 @@ end;
 function TJkhChartItem.GetDisplayName: string;
 begin
   Result := FItemName;
+end;
+
+procedure TJkhChartItem.SetItemHint(const Value: String);
+begin
+  FItemHint := Value;
 end;
 
 procedure TJkhChartItem.SetItemIcon(const Value: TPicture);
@@ -668,6 +682,7 @@ begin
                     Canvas.Rectangle(DrawRect);
                     // Canvas.MoveTo(DrawRect.Left, DrawRect.Top);
                     // Canvas.LineTo(DrawRect.Right, DrawRect.Bottom);
+                    DrawRect := Rect(DrawRect.Left-1, DrawRect.Top-1, DrawRect.Right+1, DrawRect.Bottom+1);
 
                     // 다음으로 텍스트를 그린다.
                     If PrintValue Then
@@ -736,6 +751,8 @@ var
   TextSize: TSize;
   DrawX, DrawY: Integer;
 begin
+  If FChartItem.Count <= 0 Then Exit;
+
   UseWidth := Round((ARight - ALeft) * 0.8);
   ItemWidth := UseWidth div FChartItem.Count;
   IconSize := Round(LegendSize * 0.8);
@@ -759,7 +776,8 @@ begin
            DestRect := Rect(DrawX+IconDrawMargin, ItemRect.Top+IconDrawMargin, DrawX+IconDrawMargin+DrawY, ItemRect.Top+IconDrawMargin+DrawY);
            Canvas.StretchDraw(DestRect, ItemIcon.Graphic);
 
-           DrawX := DrawX + DrawY + IconDrawMargin;
+           // DrawY = IconSize.
+           DrawX := DrawX + DrawY + (IconDrawMargin*2);
         End;
 
         // DrawText
@@ -875,13 +893,14 @@ begin
               End;
            End;
 
+           // 각 아이템을 실제로 그린다.
            For ItemValueLoop := 0 to ItemValues.Count - 1 do
               With ItemValues.Items[ItemValueLoop] as TJkhChartValue do
               Begin
                  GDI_DrawItemPen := TGPPen.Create(FOutlinecolor, FPaintOutLineSize);
                  GDI_DrawItemBrush := TGPSolidBrush.Create(FColor);
                  Try
-                    GDI_DrawRect := MakeRect(CurrentPosition.X-(FPaintItemRange div 2)-1, CurrentPosition.Y-(FPaintItemRange div 2)-1, FPaintItemRange, FPaintItemRange);
+                    GDI_DrawRect := MakeRect(CurrentPosition.X-(FPaintItemRange div 2), CurrentPosition.Y-(FPaintItemRange div 2), FPaintItemRange, FPaintItemRange);
 
                     GDI_Graphics.FillEllipse(GDI_DrawItemBrush, GDI_DrawRect);
                     GDI_Graphics.DrawEllipse(GDI_DrawItemPen, GDI_DrawRect);
@@ -889,12 +908,42 @@ begin
                     If PrintValue Then
                     Begin
                        ValueText := Hint;
+                       Canvas.Font.Assign(Font);
 
                        // 값 바꾸기 모드가 선언되어 있으면 호출된다.
                        If Assigned(OnValueToText) Then
                           FOnValueToText(Self, ItemValueLoop, ValueText);
 
-                       Canvas.TextOut(CurrentPosition.X, CurrentPosition.Y+(FPaintItemRange div 2)+2, ValueText);
+                       If Assigned(OnPrintItemEvent) Then
+                          FOnPrintItemEvent(Self, ItemLoop, ItemValueLoop, XValue, YValue, ValueText);
+
+                       TextSize := Canvas.TextExtent(ValueText);
+                       DrawRect := Rect(CurrentPosition.X-(FPaintItemRange div 2)-2, CurrentPosition.Y-(FPaintItemRange div 2)-2,
+                                        CurrentPosition.X+(FPaintItemRange div 2)+2, CurrentPosition.Y+(FPaintItemRange div 2)+2 );
+
+                       Case PrintValueAlignPos of
+                          ciapLeftTop:
+                             Canvas.TextOut(DrawRect.Left-TextSize.cx, DrawRect.Top-TextSize.cy, ValueText);
+                          ciapCenterTop:
+                             Canvas.TextOut(CurrentPosition.X-(TextSize.cx div 2), DrawRect.Top-TextSize.cy, ValueText);
+                          ciapRightTop:
+                             Canvas.TextOut(DrawRect.Right+TextSize.cx, DrawRect.Top-TextSize.cy, ValueText);
+
+                          ciapLeftCenter:
+                             Canvas.TextOut(DrawRect.Left-TextSize.cx, CurrentPosition.Y-(TextSize.cy div 2), ValueText);
+                          ciapCenter:
+                             Canvas.TextOut(CurrentPosition.X-(TextSize.cx div 2), CurrentPosition.Y-(TextSize.cy div 2), ValueText);
+                          ciapRightCenter:
+                             Canvas.TextOut(DrawRect.Right+TextSize.cx, CurrentPosition.Y-(TextSize.cy div 2), ValueText);
+
+                          ciapLeftBottom:
+                             Canvas.TextOut(DrawRect.Left-TextSize.cx, DrawRect.Bottom, ValueText);
+                          ciapCenterBottom:
+                             Canvas.TextOut(CurrentPosition.X-(TextSize.cx div 2), DrawRect.Bottom, ValueText);
+                          ciapRightBottom:
+                             Canvas.TextOut(DrawRect.Right+TextSize.cx, DrawRect.Bottom, ValueText);
+                       End;
+
                     End;
                  Finally
                     GDI_DrawItemPen.Free;

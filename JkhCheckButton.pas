@@ -251,6 +251,10 @@ var
   Rect: TRect;
   DrawImage: TPicture;
 
+  procedure DoDrawImage(LAlpha: Integer);
+  begin
+  end;
+
   procedure DoDrawText;
   var
     Text: string;
@@ -337,7 +341,10 @@ begin
      Rect.Top := Cy;
      Rect.Right := Cx + DrawImage.Width;
      Rect.Bottom := Cy + DrawImage.Height;
+
      Canvas.StretchDraw(Rect, DrawImage.Graphic);
+     // 하지말자. 기찮다.
+     //DoDrawImage(150);
 
      Rect.Left := Rect.Right + Margin-1;
      Rect.Top := (Height div 2) - (TextBaseHeight div 2);

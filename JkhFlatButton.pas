@@ -36,7 +36,7 @@ uses
   Windows, Messages, SysUtils, Classes, Controls, Graphics, Buttons, Forms;
 
 type
-  TJkhButtonLayout = (blBottomLeft, blBottomMiddle, blMiddleRight, blImageOnly, blLeftImageWithHint);
+  TJkhButtonLayout = (blBottomLeft, blBottomMiddle, blMiddleRight, blImageOnly, blLeftImageWithHint, blLeftImageWithDropdown);
 
   TJkhFlatButton = class(TGraphicControl)
   private
@@ -66,6 +66,9 @@ type
     FFocusEnabled: Boolean;
     FFocused: Boolean;
     FAutoResizeText: Boolean;
+    FImageSizeLimit: Integer;
+    FDropdownImage: TPicture;
+    FDisabledDropdownImage: TPicture;
 
     procedure SetDown(const Value: Boolean);
     procedure SetFlat(const Value: Boolean);
@@ -96,8 +99,12 @@ type
     procedure SetDisabledImage(const Value: TPicture);
     procedure SetFocused(const Value: Boolean);
     procedure SetAutoResizeText(const Value: Boolean);
+    procedure SetImageSizeLimit(const Value: Integer);
+    procedure SetDropdownImage(const Value: TPicture);
+    procedure SetDisabledDropdownImage(const Value: TPicture);
   protected
     FState: TButtonState;
+    FDropdownClicked: Boolean;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -121,6 +128,10 @@ type
   published
     property Image: TPicture read FImage write SetImage;
     property DisabledImage: TPicture read FDisabledImage write SetDisabledImage;
+    property DropdownImage: TPicture read FDropdownImage write SetDropdownImage;
+    property DisabledDropdownImage: TPicture read FDisabledDropdownImage write SetDisabledDropdownImage;
+
+    property ImageSizeLimit: Integer read FImageSizeLimit write SetImageSizeLimit;
 
     property AutoResizeText: Boolean read FAutoResizeText write SetAutoResizeText default True; 
     property Focused: Boolean read FFocused write SetFocused default False; 
@@ -269,6 +280,8 @@ begin
   FTransparent := True;
   FImage := TPicture.Create;
   FDisabledImage := TPicture.Create;
+  FDropdownImage := TPicture.Create;
+  FDisabledDropdownImage := TPicture.Create;
   FHotTrackColor := $00f7e6cd;
   FDownColor := $00f0d6b1;
   FButtonColor := clWhite;
@@ -277,12 +290,15 @@ begin
   FIsDoClick := False;
   FHandle := 0;
   FFocused := False;
+  FImageSizeLimit := 0;
 end;
 
 destructor TJkhFlatButton.Destroy;
 begin
   FImage.Free;
   FDisabledImage.Free;
+  FDropdownImage.Free;
+  FDisabledDropdownImage.Free;
   if HandleAllocated then DeAllocateHWND( FHandle );
 
   inherited;
@@ -308,11 +324,20 @@ procedure TJkhFlatButton.MouseDown(Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   inherited MouseDown(Button, Shift, X, Y);
+  FDropdownClicked := False;
+
   if (Button = mbLeft) and Enabled then
   begin
     if not FDown then
     begin
       FState := bsDown;
+
+      If Layout = blLeftImageWithDropdown Then
+      Begin
+        If Assigned(DropdownImage.Graphic) Then
+           FDropdownClicked := (X > Width-DropdownImage.Width-2);
+      End;
+
       Invalidate;
     end;
     FDragging := True;
@@ -322,13 +347,13 @@ end;
 procedure TJkhFlatButton.MouseMove(Shift: TShiftState; X, Y: Integer);
 begin
   inherited;
-
 end;
 
 procedure TJkhFlatButton.MouseUp(Button: TMouseButton; Shift: TShiftState;
   X, Y: Integer);
 var
   DoClick: Boolean;
+  PositionInfo: TPoint;
 begin
   inherited MouseUp(Button, Shift, X, Y);
   if FDragging then
@@ -340,9 +365,24 @@ begin
     FState := bsUp;
     FMouseInControl := False;
     if DoClick and not (FState in [bsExclusive, bsDown]) then
-      Invalidate;
+       Invalidate;
 
-    if DoClick then Click;
+    if DoClick then
+    Begin
+       If Layout = blLeftImageWithDropdown Then
+       Begin
+         If Assigned(DropdownImage.Graphic) Then
+            If FDropdownClicked and (X > Width-DropdownImage.Width-2) Then
+            Begin
+               PositionInfo := Point(0, Height);
+               PositionInfo := Self.ClientToScreen(PositionInfo);
+               Self.PopupMenu.Popup(PositionInfo.X, PositionInfo.Y);
+               Exit;
+            End;
+       End;
+
+       Click;
+    End;
     // UpdateTracking;
   end;
 end;
@@ -359,8 +399,26 @@ var
   DrawRect: TRect;
   MonoImage: TBitmap;
   AutoResizeLoop: Integer;
+
+  LImageHeight,
+  LImageWidth: Integer;
 begin
   inherited;
+
+  LImageHeight := 0;
+  LImageWidth := 0;
+
+  If Assigned(Image.Graphic) Then
+  Begin
+     LImageHeight := Image.Height;
+     LImageWidth := Image.Width;
+
+     If FImageSizeLimit > 0 Then
+     Begin
+        LImageHeight := FImageSizeLimit;
+        LImageWidth := FImageSizeLimit;
+     End;
+  End;
 
   Canvas.Font := Self.Font;
 
@@ -415,13 +473,13 @@ begin
      Begin
         If Assigned(Image.Graphic) Then
         Begin
-           Cx := (Width div 2) - (Image.Width div 2);
-           Cy := ((Height - TextBaseHeight) div 2) - (Image.Height div 2);
+           Cx := (Width div 2) - (LImageWidth div 2);
+           Cy := ((Height - TextBaseHeight) div 2) - (LImageHeight div 2);
 
            DrawRect.Left := Cx;
            DrawRect.Top := Cy;
-           DrawRect.Right := Cx + Image.Width;
-           DrawRect.Bottom := Cy + Image.Height;
+           DrawRect.Right := Cx + LImageWidth;
+           DrawRect.Bottom := Cy + LImageHeight;
            If Not Enabled and Assigned(DisabledImage.Graphic) Then
               Canvas.StretchDraw(DrawRect, DisabledImage.Graphic)
            Else
@@ -462,13 +520,13 @@ begin
 
         If Assigned(Image.Graphic) Then
         Begin
-           Cx := (Width div 2) - (Image.Width div 2);
-           Cy := ((Height - TextBaseHeight) div 2) - (Image.Height div 2);
+           Cx := (Width div 2) - (LImageWidth div 2);
+           Cy := ((Height - TextBaseHeight) div 2) - (LImageHeight div 2);
 
            DrawRect.Left := Cx;
            DrawRect.Top := Cy;
-           DrawRect.Right := Cx + Image.Width;
-           DrawRect.Bottom := Cy + Image.Height;
+           DrawRect.Right := Cx + LImageWidth;
+           DrawRect.Bottom := Cy + LImageHeight;
            If Not Enabled and Assigned(DisabledImage.Graphic) Then
               Canvas.StretchDraw(DrawRect, DisabledImage.Graphic)
            Else
@@ -497,7 +555,7 @@ begin
      Begin
         Cx := 4;
         If Assigned(Image.Graphic) Then
-           Cx := Cx + Image.Width;
+           Cx := Cx + LImageWidth;
 
         // 폭보다 글자가 큰 상황이라면 자동으로 크기를 조정한다.
         If TextBaseWidth + Cx >= Width Then
@@ -517,13 +575,13 @@ begin
 
         If Assigned(Image.Graphic) Then
         Begin
-           Cx := ((Width - TextBaseWidth - Margin) div 2) - (Image.Width div 2);
-           Cy := (Height div 2) - (Image.Height div 2);
+           Cx := ((Width - TextBaseWidth - Margin) div 2) - (LImageWidth div 2);
+           Cy := (Height div 2) - (LImageHeight div 2);
 
            DrawRect.Left := Cx;
            DrawRect.Top := Cy;
-           DrawRect.Right := Cx + Image.Width;
-           DrawRect.Bottom := Cy + Image.Height;
+           DrawRect.Right := Cx + LImageWidth;
+           DrawRect.Bottom := Cy + LImageHeight;
            If Not Enabled and Assigned(DisabledImage.Graphic) Then
               Canvas.StretchDraw(DrawRect, DisabledImage.Graphic)
            Else
@@ -552,13 +610,13 @@ begin
      Begin
         If Not Assigned(Image.Graphic) Then Exit;
 
-        Cx := ((Width - Margin) div 2) - (Image.Width div 2);
-        Cy := (Height div 2) - (Image.Height div 2);
+        Cx := ((Width - Margin) div 2) - (LImageWidth div 2);
+        Cy := (Height div 2) - (LImageHeight div 2);
 
         DrawRect.Left := Cx;
         DrawRect.Top := Cy;
-        DrawRect.Right := Cx + Image.Width;
-        DrawRect.Bottom := Cy + Image.Height;
+        DrawRect.Right := Cx + LImageWidth;
+        DrawRect.Bottom := Cy + LImageHeight;
         If Not Enabled and Assigned(DisabledImage.Graphic) Then
            Canvas.StretchDraw(DrawRect, DisabledImage.Graphic)
         Else
@@ -574,8 +632,8 @@ begin
 
            DrawRect.Left := Cx;
            DrawRect.Top := Cy;
-           DrawRect.Right := Cx + Image.Width;
-           DrawRect.Bottom := Cy + Image.Height;
+           DrawRect.Right := Cx + LImageWidth;
+           DrawRect.Bottom := Cy + LImageHeight;
            If Not Enabled and Assigned(DisabledImage.Graphic) Then
               Canvas.StretchDraw(DrawRect, DisabledImage.Graphic)
            Else
@@ -612,10 +670,57 @@ begin
         Canvas.Font.Style := [];
         Canvas.TextRect(GuardRect, DrawRect.Left, DrawRect.Top, Hint);
      End;
+
+     blLeftImageWithDropdown:
+     Begin
+        If Assigned(DropdownImage.Graphic) Then
+        Begin
+           GuardRect.Right := GuardRect.Right-DropdownImage.Width-2;
+           DrawRect := Rect(Width-DropdownImage.Width-2, 0, Width-1, Height);
+
+           Canvas.MoveTo(DrawRect.Left, DrawRect.Top);
+           Canvas.LineTo(DrawRect.Left, DrawRect.Bottom);
+
+           Canvas.Draw(DrawRect.Left+1, (DrawRect.Bottom div 2)-(DropdownImage.Height div 2)+1, DropdownImage.Graphic);
+        End;
+
+        If Assigned(Image.Graphic) Then
+        Begin
+           Cx := Spacing;
+           Cy := Spacing;
+
+           DrawRect.Left := Cx;
+           DrawRect.Top := Cy;
+           DrawRect.Right := Cx + LImageWidth;
+           DrawRect.Bottom := Cy + LImageHeight;
+           If Not Enabled and Assigned(DisabledImage.Graphic) Then
+              Canvas.StretchDraw(DrawRect, DisabledImage.Graphic)
+           Else
+              Canvas.StretchDraw(DrawRect, Image.Graphic);
+
+           DrawRect.Left := DrawRect.Right + Margin;
+           DrawRect.Top := (Height div 2) - (TextBaseHeight div 2)+1;
+           DrawRect.Right := DrawRect.Left + TextBaseWidth;
+           DrawRect.Bottom := DrawRect.Top + TextBaseHeight;
+        End
+        Else
+        Begin
+           DrawRect.Left := Spacing;
+           DrawRect.Top := Spacing;
+           DrawRect.Right := DrawRect.Left + TextBaseWidth;
+           DrawRect.Bottom := DrawRect.Top + TextBaseHeight;
+        End;
+
+        GuardRect.Left := DrawRect.Left;
+        If GuardRect.Left <= 0 Then GuardRect.Left := 1;
+
+        Canvas.TextRect(GuardRect, DrawRect.Left, DrawRect.Top, Caption);
+     End;
   End;
 
   If Focused Then
   Begin
+     // 점선기능.
      Canvas.Brush.Style := bsClear;
      // Canvas.Pen.Color := clWhite;
      Canvas.Pen.Style := psDot;
@@ -648,6 +753,12 @@ begin
   end;
 end;
 
+procedure TJkhFlatButton.SetDisabledDropdownImage(const Value: TPicture);
+begin
+  FDisabledDropdownImage.Assign( Value );
+  Invalidate;
+end;
+
 procedure TJkhFlatButton.SetDisabledImage(const Value: TPicture);
 begin
   FDisabledImage.Assign( Value );
@@ -663,6 +774,12 @@ end;
 procedure TJkhFlatButton.SetDownColor(const Value: TColor);
 begin
   FDownColor := Value;
+  Invalidate;
+end;
+
+procedure TJkhFlatButton.SetDropdownImage(const Value: TPicture);
+begin
+  FDropdownImage.Assign(Value);
   Invalidate;
 end;
 
@@ -687,6 +804,12 @@ end;
 procedure TJkhFlatButton.SetImage(const Value: TPicture);
 begin
   FImage.Assign( Value );
+  Invalidate;
+end;
+
+procedure TJkhFlatButton.SetImageSizeLimit(const Value: Integer);
+begin
+  FImageSizeLimit := Value;
   Invalidate;
 end;
 
