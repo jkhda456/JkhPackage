@@ -33,7 +33,12 @@ unit JkhCheckButton;
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Controls, Graphics, Buttons;
+  Windows, Messages, SysUtils, Classes,
+  {$if CompilerVersion <= 15}
+  Controls, ExtCtrls, Graphics, Types;
+  {$elseif CompilerVersion > 16}
+  Vcl.Controls, Vcl.ExtCtrls, Vcl.Graphics, System.Types;
+  {$ifend}
 
 type
   TJkhCheckButton = class(TGraphicControl)

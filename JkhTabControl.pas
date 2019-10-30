@@ -37,8 +37,15 @@ unit JkhTabControl;
 interface
 
 uses
-  Windows, Messages, Graphics, Forms, CommCtrl,
-  SysUtils, Classes, Controls, ComCtrls, ExtCtrls;
+  Windows, Messages, SysUtils, Classes, CommCtrl,
+  {$if CompilerVersion <= 15}
+  Forms, ComCtrls, ExtCtrls, Controls, StdCtrls, Types, Graphics;
+  {$elseif CompilerVersion > 16}
+  Vcl.Forms, Vcl.ComCtrls, Vcl.ExtCtrls, Vcl.Controls, Vcl.StdCtrls, Vcl.Graphics, System.Types;
+  {$ifend}
+
+//  Windows, Messages, Graphics, Forms, CommCtrl,
+//  SysUtils, Classes, Controls, ComCtrls, ExtCtrls;
 
 type
   TJkhTabControl = class;

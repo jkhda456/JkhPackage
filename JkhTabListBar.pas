@@ -33,7 +33,14 @@ unit JkhTabListBar;
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Controls, Graphics, Types;
+  Windows, Messages, SysUtils, Classes,
+  {$if CompilerVersion <= 15}
+  Controls, Graphics, Types;
+  {$elseif CompilerVersion > 16}
+  Vcl.Controls, Vcl.Graphics, System.Types;
+  {$ifend}
+
+//   Windows, Messages, SysUtils, Classes, Controls, Graphics, Types;
 
 type
   TTabNotifyEvent = procedure(Sender: TObject; Index: Integer) of object;

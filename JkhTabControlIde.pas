@@ -33,8 +33,15 @@ unit JkhTabControlIde;
 interface
 
 uses
-  Classes, JkhTabControl, Comctrls, Windows, Forms, TypInfo, ExtCtrls, 
-  Controls, DesignIntf, DesignEditors, ContNrs;
+  Windows, Classes, JkhTabControl, DesignIntf, DesignEditors,
+  {$if CompilerVersion <= 15}
+  Forms, ComCtrls, TypInfo, Controls, StdCtrls, Types, Graphics;
+  {$elseif CompilerVersion > 16}
+  Vcl.Forms, Vcl.ComCtrls, Vcl.ExtCtrls, Vcl.Controls, System.TypInfo, System.Types;
+  {$ifend}
+
+//  Classes, JkhTabControl, Comctrls, Windows, Forms, TypInfo, ExtCtrls,
+//  Controls, DesignIntf, DesignEditors, ContNrs;
 
 type
   TJkhTabControlEditor = class(TDefaultEditor)

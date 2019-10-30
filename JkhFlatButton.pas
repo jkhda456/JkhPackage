@@ -33,7 +33,14 @@ unit JkhFlatButton;
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Controls, Graphics, Buttons, Forms;
+  Windows, Messages, SysUtils, Classes,
+  {$if CompilerVersion <= 15}
+  Controls, Graphics, Buttons, Forms;
+  {$elseif CompilerVersion > 16}
+  Vcl.Forms, Vcl.Controls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Buttons, System.Types;
+  {$ifend}
+
+  //Windows, Messages, SysUtils, Classes, ;
 
 type
   TJkhButtonLayout = (blBottomLeft, blBottomMiddle, blMiddleRight, blImageOnly, blLeftImageWithHint, blLeftImageWithDropdown);

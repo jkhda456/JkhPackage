@@ -33,7 +33,13 @@ unit JkhFakeIME;
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Controls, Forms, IMM, StrUtils;
+  Windows, Messages, SysUtils, Classes, IMM, StrUtils,
+  {$if CompilerVersion <= 15}
+  Forms, Controls;
+  {$elseif CompilerVersion > 16}
+  Vcl.Forms, Vcl.Controls;
+  {$ifend}
+
 
 type
   TJkhFakeIMENotify = procedure(ASender: TObject; AMessage: PWideChar) of object;
@@ -149,7 +155,7 @@ begin
     ImmGetCompositionStringW( hIGC, GCS_RESULTSTR, imComp, Len );
 
     {$IfDEF Debug}
-    Debug := IntToStr(Len);
+    //Debug := IntToStr(Len);
     {$EndIF}
     If Len <> 0 Then
     Begin

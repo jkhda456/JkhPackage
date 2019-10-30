@@ -33,7 +33,12 @@ unit JkhBevel;
 interface
 
 uses
-  SysUtils, Classes, Controls, ExtCtrls, Graphics, Types;
+  SysUtils, Classes,
+  {$if CompilerVersion <= 15}
+  Controls, ExtCtrls, Graphics, Types;
+  {$elseif CompilerVersion > 16}
+  Vcl.Controls, Vcl.ExtCtrls, Vcl.Graphics, System.Types;
+  {$ifend}
 
 type
   TJkhBevel = class(TGraphicControl)

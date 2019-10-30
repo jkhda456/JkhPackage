@@ -33,7 +33,12 @@ unit JkhLabel;
 interface
 
 uses
-  Windows, SysUtils, Classes, Controls, StdCtrls, Types, Graphics;
+  Windows, SysUtils, Classes,
+  {$if CompilerVersion <= 15}
+  Controls, StdCtrls, Types, Graphics;
+  {$elseif CompilerVersion > 16}
+  Vcl.Controls, Vcl.StdCtrls, Vcl.Graphics, System.Types;
+  {$ifend}
 
 type
   TJkhFontWeight = (fwDONTCARE, fwTHIN, fwEXTRALIGHT, fwLIGHT, fwNORMAL,
