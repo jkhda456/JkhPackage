@@ -33,7 +33,7 @@ unit JkhChartPanel;
 interface
 
 uses
-  SysUtils, Classes, Controls, ExtCtrls, Types, Graphics, GDIPAPI;
+  Windows, Messages, SysUtils, Classes, Controls, ExtCtrls, Types, Graphics, GDIPAPI;
 
 type
   TJkhChartEnvFlowDirection = (cedVertial, cedHorizontal);
@@ -241,6 +241,7 @@ type
     procedure DrawLegend(ALeft, ATop, ARight, ABottom: Integer);
     procedure DrawValues(ALeft, ATop, ARight, ABottom: Integer);
 
+    procedure WMEraseBkGnd(var Message: TWMEraseBkGnd); message WM_ERASEBKGND;
     procedure Paint; override;
   public
     constructor Create(AOwner: TComponent); override;
@@ -598,6 +599,8 @@ end;
 constructor TJkhChartPanel.Create(AOwner: TComponent);
 begin
   inherited;
+
+  DoubleBuffered := True;
 
   FChartItem := TJkhChartItemList.Create;
   FChartItem.CollectionOwner := Self;
@@ -961,6 +964,11 @@ procedure TJkhChartPanel.Paint;
 var
   BackroundRect: TRect;
 begin
+  // Draw background
+  Canvas.Pen.Color := Color;
+  Canvas.Brush.Color := Color;
+  Canvas.Rectangle(0, 0, Width, Height);
+
   inherited;
 
   If FDrawLegend Then
@@ -1008,6 +1016,12 @@ procedure TJkhChartPanel.SetLegendSize(const Value: Integer);
 begin
   FLegendSize := Value;
   Invalidate;
+end;
+
+procedure TJkhChartPanel.WMEraseBkGnd(var Message: TWMEraseBkGnd);
+begin
+  // BitBlt(Message.dc, 0, 0, Width, Height, Canvas.Handle, 0, 0, SRCCOPY);
+  Inherited;
 end;
 
 end.
