@@ -256,23 +256,23 @@ var
   Rect: TRect;
   DrawImage: TPicture;
 
+  Text: string;
+  lf: LOGFONT;
+  Flags: Integer;
+  ShowAccelChar: Boolean;
+
   procedure DoDrawImage(LAlpha: Integer);
   begin
   end;
 
-  procedure DoDrawText;
-  var
-    Text: string;
-    lf: LOGFONT;
-    Flags: Integer;
-    ShowAccelChar: Boolean;
+  procedure DoPrepareText;
   begin
     // Rect, Rect.Left, Rect.Top,
     Text := Caption;
     // Flag 지원 안할거다.
     Flags := 0;
     ShowAccelChar := True;
-    
+
     if (Flags and DT_CALCRECT <> 0) and ((Text = '') or ShowAccelChar and
       (Text[1] = '&') and (Text[2] = #0)) then Text := Text + ' ';
     if not ShowAccelChar then Flags := Flags or DT_NOPREFIX;
@@ -288,7 +288,10 @@ var
     StrCopy(lf.lfFaceName, PChar(Font.Name));
     Canvas.Font.Handle := CreateFontIndirect(lf);
     Canvas.Font.Color := Font.Color;
+  end;
 
+  procedure DoDrawText;
+  begin
     if not Enabled then
     begin
       OffsetRect(Rect, 1, 1);
@@ -311,6 +314,8 @@ begin
      Canvas.Brush.Style := bsClear;
 
   TextBaseHeight := Margin;
+  DoPrepareText;
+
   If Caption <> '' Then
   Begin
      TextBaseSize := Canvas.TextExtent(Caption);
