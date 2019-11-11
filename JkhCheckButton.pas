@@ -58,6 +58,7 @@ type
     FCheckImage: TPicture;
     FChecked: Boolean;
     FScreenLogPixels: Integer;
+    FAutoResizeText: Boolean;
 
     procedure SetMargin(const Value: Integer);
     procedure SetSpacing(const Value: Integer);
@@ -77,6 +78,7 @@ type
     procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
     procedure SetCheckImage(const Value: TPicture);
     procedure SetChecked(const Value: Boolean);
+    procedure SetAutoResizeText(const Value: Boolean);
   protected
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
@@ -108,6 +110,7 @@ type
     property Visible;
     property Checked: Boolean read FChecked write SetChecked;
 
+    property AutoResizeText: Boolean read FAutoResizeText write SetAutoResizeText default False;
     property DisabledFontColor: TColor read FDisabledFontColor write FDisabledFontColor;
     property ButtonColor: TColor read FButtonColor write SetButtonColor;
     property HotTrackColor: TColor read FHotTrackColor write SetHotTrackColor;
@@ -252,9 +255,11 @@ var
   TextBaseSize: TSize;
   TextBaseHeight,
   TextBaseWidth,
+  ImageBaseWidth,
   Cx, Cy: Integer;
   Rect: TRect;
   DrawImage: TPicture;
+  AutoResizeLoop: Integer;
 
   Text: string;
   lf: LOGFONT;
@@ -265,22 +270,10 @@ var
   begin
   end;
 
-  procedure DoPrepareText;
+  procedure DoPrepareText(FontSize: Integer);
   begin
-    // Rect, Rect.Left, Rect.Top,
-    Text := Caption;
-    // Flag 지원 안할거다.
-    Flags := 0;
-    ShowAccelChar := True;
-
-    if (Flags and DT_CALCRECT <> 0) and ((Text = '') or ShowAccelChar and
-      (Text[1] = '&') and (Text[2] = #0)) then Text := Text + ' ';
-    if not ShowAccelChar then Flags := Flags or DT_NOPREFIX;
-    Flags := DrawTextBiDiModeFlags(Flags);
-    //Canvas.Font := Font;
-
     FillChar(lf, SizeOf(lf), Byte(0));
-    lf.lfHeight := -MulDiv(Font.Size, FScreenLogPixels, 72);
+    lf.lfHeight := -MulDiv(FontSize, FScreenLogPixels, 72);
     lf.lfWidth := 0;
     lf.lfWeight := FW_NORMAL;
     lf.lfQuality := ANTIALIASED_QUALITY;
@@ -314,21 +307,6 @@ begin
      Canvas.Brush.Style := bsClear;
 
   TextBaseHeight := Margin;
-  DoPrepareText;
-
-  If Caption <> '' Then
-  Begin
-     TextBaseSize := Canvas.TextExtent(Caption);
-     TextBaseHeight := TextBaseHeight + TextBaseSize.cy;
-     TextBaseWidth := TextBaseSize.cx;
-
-     If TextBaseWidth <= 0 Then TextBaseWidth := 1;
-
-     If Not Enabled Then
-        Canvas.Font.Color := FDisabledFontColor
-     Else
-        Canvas.Font.Color := Font.Color; 
-  End;
 
   DrawImage := Nil;
   If Checked Then
@@ -338,6 +316,52 @@ begin
   Else
   Begin
      If Assigned(UncheckImage) Then DrawImage := UncheckImage;
+  End;
+
+  ImageBaseWidth := 0;
+  If DrawImage <> Nil Then
+     ImageBaseWidth := DrawImage.Width;
+
+  // Rect, Rect.Left, Rect.Top,
+  Text := Caption;
+  // Flag 지원 안할거다.
+  Flags := 0;
+  ShowAccelChar := True;
+
+  if (Flags and DT_CALCRECT <> 0) and ((Text = '') or ShowAccelChar and
+    (Text[1] = '&') and (Text[2] = #0)) then Text := Text + ' ';
+  if not ShowAccelChar then Flags := Flags or DT_NOPREFIX;
+  Flags := DrawTextBiDiModeFlags(Flags);
+  //Canvas.Font := Font;
+
+  DoPrepareText(Canvas.Font.Size);
+
+  If Caption <> '' Then
+  Begin
+     TextBaseSize := Canvas.TextExtent(Caption);
+     TextBaseHeight := Margin + TextBaseSize.cy;
+     TextBaseWidth := TextBaseSize.cx;
+
+     If TextBaseWidth <= 0 Then TextBaseWidth := 1;
+
+     If FAutoResizeText and ((TextBaseWidth+ImageBaseWidth) > Width) Then
+     Begin
+        for AutoResizeLoop := 1 to 3 do
+        begin
+           DoPrepareText(Font.Size - AutoResizeLoop);
+
+           TextBaseSize := Canvas.TextExtent(Caption);
+           TextBaseHeight := Margin + TextBaseSize.cy;
+           TextBaseWidth := TextBaseSize.cx;
+
+           If ((TextBaseWidth+ImageBaseWidth) <= Width) Then Break;
+        end;
+     End;
+
+     If Not Enabled Then
+        Canvas.Font.Color := FDisabledFontColor
+     Else
+        Canvas.Font.Color := Font.Color;
   End;
 
   // 이미지랑 Caption이 있으면 그린다. 단 그전에 위치 파악을 하자.
@@ -382,6 +406,12 @@ end;
 procedure TJkhCheckButton.SetChecked(const Value: Boolean);
 begin
   FChecked := Value;
+  Invalidate;
+end;
+
+procedure TJkhCheckButton.SetAutoResizeText(const Value: Boolean);
+begin
+  FAutoResizeText := Value;
   Invalidate;
 end;
 
