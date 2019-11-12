@@ -52,17 +52,19 @@ type
     FFontColor: TColor;
     FScreenLogPixels: Integer;
     FFontWeight: TJkhFontWeight;
+    FFixedDPI: Integer;
     procedure SetFontColor(const Value: TColor);
     procedure SetFontFace(const Value: String);
     procedure SetFontSize(const Value: Integer);
     procedure SetFontWeight(const Value: TJkhFontWeight);
-    { Private declarations }
+    procedure SetFixedDPI(const Value: Integer);
   protected
     procedure DoDrawText(var Rect: TRect; Flags: Longint); override;
     procedure AdjustBounds; override;
   public
     constructor Create(AOwner: TComponent); override;
   published
+    property FixedDPI: Integer read FFixedDPI write SetFixedDPI default -1;
     property FontSize: Integer read FFontSize write SetFontSize;
     property FontWeight: TJkhFontWeight read FFontWeight write SetFontWeight;
     property FontFace: string read FFontFace write SetFontFace;
@@ -151,9 +153,14 @@ var
 begin
   inherited;
 
-  DC := GetDC(0);
-  FScreenLogPixels := GetDeviceCaps(DC, LOGPIXELSY);
-  ReleaseDC(0,DC);
+  If FixedDPI <= 0 Then
+  Begin
+     DC := GetDC(0);
+     FScreenLogPixels := GetDeviceCaps(DC, LOGPIXELSY);
+     ReleaseDC(0,DC);
+  End
+  Else
+     FScreenLogPixels := FixedDPI;
 
   FFontWeight := fwNORMAL;
   FFontSize := 8;
@@ -194,6 +201,23 @@ begin
   end
   else
     DrawText(Canvas.Handle, PChar(Text), Length(Text), Rect, Flags);
+end;
+
+procedure TJkhLabel.SetFixedDPI(const Value: Integer);
+var
+  DC: HDC;
+begin
+  FFixedDPI := Value;
+  If FFixedDPI > 0 Then
+     FScreenLogPixels := FFixedDPI
+  Else
+  Begin
+     DC := GetDC(0);
+     FScreenLogPixels := GetDeviceCaps(DC, LOGPIXELSY);
+     ReleaseDC(0,DC);
+  End;
+
+  Invalidate;
 end;
 
 procedure TJkhLabel.SetFontColor(const Value: TColor);
