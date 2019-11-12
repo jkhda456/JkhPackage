@@ -2,4 +2,4 @@
 Jkh's multipurpose delphi component packages
 
 support D7
-BSD License
+BSD / MPL License
