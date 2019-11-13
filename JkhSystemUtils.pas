@@ -36,6 +36,7 @@ uses
   Windows, SysUtils, Classes, MultiMon;
 
 type
+  {$Z4} // for DPI
   PROCESS_DPI_AWARENESS = (
      PROCESS_DPI_UNAWARE,
      PROCESS_SYSTEM_DPI_AWARE,
@@ -132,6 +133,7 @@ begin
   SetAwareness := TSetProcessDPIAwareness(GetProcAddress(ShCoreLib, 'SetProcessDpiAwareness'));
   If Assigned(SetAwareness) Then
   Begin
+     // SetAwareness(Integer(ALevel));
      SetAwareness(ALevel);
      Result := True;
   End;
