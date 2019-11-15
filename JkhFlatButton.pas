@@ -232,6 +232,8 @@ end;
 
 procedure TJkhFlatButton.CMEnabledChanged(var Message: TMessage);
 begin
+  If Not Enabled Then
+     FState := bsExclusive;
   Invalidate;
 end;
 
@@ -245,7 +247,7 @@ begin
   inherited;
   If Enabled Then
      FState := bsUp;
-     
+
   Repaint;
 
   If Assigned(FOnInMouse) Then FOnInMouse(Self);
@@ -335,19 +337,19 @@ begin
 
   if (Button = mbLeft) and Enabled then
   begin
-    if not FDown then
-    begin
-      FState := bsDown;
+     if not FDown then
+     begin
+        FState := bsDown;
 
-      If Layout = blLeftImageWithDropdown Then
-      Begin
-        If Assigned(DropdownImage.Graphic) Then
-           FDropdownClicked := (X > Width-DropdownImage.Width-2);
-      End;
+        If Layout = blLeftImageWithDropdown Then
+        Begin
+           If Assigned(DropdownImage.Graphic) Then
+              FDropdownClicked := (X > Width-DropdownImage.Width-2);
+        End;
 
-      Invalidate;
-    end;
-    FDragging := True;
+        Invalidate;
+     end;
+     FDragging := True;
   end;
 end;
 
@@ -378,14 +380,14 @@ begin
     Begin
        If Layout = blLeftImageWithDropdown Then
        Begin
-         If Assigned(DropdownImage.Graphic) Then
-            If FDropdownClicked and (X > Width-DropdownImage.Width-2) Then
-            Begin
-               PositionInfo := Point(0, Height);
-               PositionInfo := Self.ClientToScreen(PositionInfo);
-               Self.PopupMenu.Popup(PositionInfo.X, PositionInfo.Y);
-               Exit;
-            End;
+          If Assigned(DropdownImage.Graphic) Then
+             If FDropdownClicked and (X > Width-DropdownImage.Width-2) Then
+             Begin
+                PositionInfo := Point(0, Height);
+                PositionInfo := Self.ClientToScreen(PositionInfo);
+                Self.PopupMenu.Popup(PositionInfo.X, PositionInfo.Y);
+                Exit;
+             End;
        End;
 
        Click;
