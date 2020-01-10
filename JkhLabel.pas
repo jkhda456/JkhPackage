@@ -53,11 +53,13 @@ type
     FScreenLogPixels: Integer;
     FFontWeight: TJkhFontWeight;
     FFixedDPI: Integer;
+    FFontStrike: Boolean;
     procedure SetFontColor(const Value: TColor);
     procedure SetFontFace(const Value: String);
     procedure SetFontSize(const Value: Integer);
     procedure SetFontWeight(const Value: TJkhFontWeight);
     procedure SetFixedDPI(const Value: Integer);
+    procedure SetFontStrike(const Value: Boolean);
   protected
     procedure DoDrawText(var Rect: TRect; Flags: Longint); override;
     procedure AdjustBounds; override;
@@ -69,6 +71,7 @@ type
     property FontWeight: TJkhFontWeight read FFontWeight write SetFontWeight;
     property FontFace: string read FFontFace write SetFontFace;
     property FontColor: TColor read FFontColor write SetFontColor;
+    property FontStrike: Boolean read FFontStrike write SetFontStrike; 
 
     property Align;
     property Alignment;
@@ -166,6 +169,7 @@ begin
   FFontSize := 8;
   FFontFace := 'Gulim';
   FFontColor := clBlack;
+  FFontStrike := False;
 end;
 
 procedure TJkhLabel.DoDrawText(var Rect: TRect; Flags: Integer);
@@ -186,6 +190,10 @@ begin
   lf.lfWeight := FFontWeightValue;
   lf.lfQuality := ANTIALIASED_QUALITY;
   lf.lfCharSet := HANGEUL_CHARSET;
+  if FFontStrike then
+     lf.lfStrikeOut := 1
+  else
+     lf.lfStrikeOut := 0;
   StrCopy(lf.lfFaceName, PChar(FFontFace));
   Canvas.Font.Handle := CreateFontIndirect(lf);
   Canvas.Font.Color := FFontColor;
@@ -235,6 +243,12 @@ end;
 procedure TJkhLabel.SetFontSize(const Value: Integer);
 begin
   FFontSize := Value;
+  AdjustBounds;
+end;
+
+procedure TJkhLabel.SetFontStrike(const Value: Boolean);
+begin
+  FFontStrike := Value;
   AdjustBounds;
 end;
 
