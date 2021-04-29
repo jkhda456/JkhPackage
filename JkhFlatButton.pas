@@ -76,6 +76,7 @@ type
     FImageSizeLimit: Integer;
     FDropdownImage: TPicture;
     FDisabledDropdownImage: TPicture;
+    FAlignment: TAlignment;
 
     procedure SetDown(const Value: Boolean);
     procedure SetFlat(const Value: Boolean);
@@ -109,6 +110,7 @@ type
     procedure SetImageSizeLimit(const Value: Integer);
     procedure SetDropdownImage(const Value: TPicture);
     procedure SetDisabledDropdownImage(const Value: TPicture);
+    procedure SetAlignment(const Value: TAlignment);
   protected
     FState: TButtonState;
     FDropdownClicked: Boolean;
@@ -141,8 +143,10 @@ type
     property ImageSizeLimit: Integer read FImageSizeLimit write SetImageSizeLimit;
 
     property AutoResizeText: Boolean read FAutoResizeText write SetAutoResizeText default True; 
-    property Focused: Boolean read FFocused write SetFocused default False; 
+    property Focused: Boolean read FFocused write SetFocused default False;
     property Layout: TJkhButtonLayout read FLayout write SetLayout default blBottomLeft;
+    property Alignment: TAlignment read FAlignment write SetAlignment default taCenter;
+
     property Anchors;
     property Constraints;
     property IsCanDown: Boolean read FIsCanDown write FIsCanDown;
@@ -285,6 +289,7 @@ begin
   FSpacing := 4;
   FMargin := 0;
   FLayout := blBottomLeft;
+  FAlignment := taCenter;
   FState := bsExclusive;
   FTransparent := True;
   FImage := TPicture.Create;
@@ -365,6 +370,7 @@ var
   PositionInfo: TPoint;
 begin
   inherited MouseUp(Button, Shift, X, Y);
+  
   if FDragging then
   begin
     FDragging := False;
@@ -380,12 +386,14 @@ begin
     Begin
        If Layout = blLeftImageWithDropdown Then
        Begin
-          If Assigned(DropdownImage.Graphic) Then
+          If Assigned(DropdownImage.Graphic) and Assigned(PopupMenu) Then
              If FDropdownClicked and (X > Width-DropdownImage.Width-2) Then
              Begin
                 PositionInfo := Point(0, Height);
                 PositionInfo := Self.ClientToScreen(PositionInfo);
                 Self.PopupMenu.Popup(PositionInfo.X, PositionInfo.Y);
+
+                Invalidate;
                 Exit;
              End;
        End;
@@ -585,6 +593,7 @@ begin
         If Assigned(Image.Graphic) Then
         Begin
            Cx := ((Width - TextBaseWidth - Margin) div 2) - (LImageWidth div 2);
+           // Cx := Width - TextBaseWidth - (Margin) - LImageWidth;
            Cy := (Height div 2) - (LImageHeight div 2);
 
            DrawRect.Left := Cx;
@@ -735,6 +744,12 @@ begin
      Canvas.Pen.Style := psDot;
      Canvas.Rectangle(DotMargin, DotMargin, Width-DotMargin, Height-DotMargin);
   End;
+end;
+
+procedure TJkhFlatButton.SetAlignment(const Value: TAlignment);
+begin
+  FAlignment := Value;
+  Invalidate;
 end;
 
 procedure TJkhFlatButton.SetAutoResizeText(const Value: Boolean);

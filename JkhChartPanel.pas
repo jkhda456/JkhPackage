@@ -60,12 +60,14 @@ type
     FPaintItemRange: Integer;
     FPaintOutLineSize: Integer;
     FOutlineColor: TGPColor;
+    FTag: Integer;
     procedure SetHint(const Value: String);
     procedure SetPrintValue(const Value: Boolean);
     procedure SetPrintValueAlign(const Value: TJkhChartItemAlignPosition);
     procedure SetXValue(const Value: Integer);
     procedure SetYValue(const Value: Integer);
     procedure SetFont(const Value: TFont);
+    procedure SetTag(const Value: Integer);
   protected
     function GetDisplayName: string; override;
   public
@@ -78,6 +80,7 @@ type
     property Color: TGPColor read FColor write FColor;
     property OutlineColor: TGPColor read FOutlineColor write FOutlineColor;
     property Font: TFont read FFont write SetFont;
+    property Tag: Integer read FTag write SetTag;
     property Hint: String read FHint write SetHint;
 
     property PrintValue: Boolean read FPrintValue write SetPrintValue;
@@ -231,6 +234,7 @@ type
     FLegendSize: Integer;
     FLegendFont: TFont;
     FOnPrintItemEvent: TJkhChartPrintItemEvent;
+    FOnItemOnMouse: TJkhChartPrintItemEvent;
     procedure SetChartItem(const Value: TJkhChartItemList);
     procedure SetChartEnvItem(const Value: TJkhChartEnvItemList);
     procedure SetDrawLegend(const Value: Boolean);
@@ -242,6 +246,9 @@ type
     procedure DrawValues(ALeft, ATop, ARight, ABottom: Integer);
 
     procedure WMEraseBkGnd(var Message: TWMEraseBkGnd); message WM_ERASEBKGND;
+
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+
     procedure Paint; override;
   public
     constructor Create(AOwner: TComponent); override;
@@ -317,6 +324,8 @@ type
     property OnUnDock;
 
     property OnPrintItemEvent: TJkhChartPrintItemEvent read FOnPrintItemEvent write FOnPrintItemEvent;
+
+    property OnItemOnMouse: TJkhChartPrintItemEvent read FOnItemOnMouse write FOnItemOnMouse;
   end;
 
 procedure Register;
@@ -382,6 +391,11 @@ procedure TJkhChartValue.SetPrintValueAlign(
   const Value: TJkhChartItemAlignPosition);
 begin
   FPrintValueAlign := Value;
+end;
+
+procedure TJkhChartValue.SetTag(const Value: Integer);
+begin
+  FTag := Value;
 end;
 
 procedure TJkhChartValue.SetXValue(const Value: Integer);
@@ -958,6 +972,56 @@ begin
   Finally
      GDI_Graphics.Free;
   End;
+end;
+
+procedure TJkhChartPanel.MouseMove(Shift: TShiftState; X, Y: Integer);
+var
+  BackroundRect: TRect;
+
+  ItemLoop: Integer;
+  ItemValueLoop: Integer;
+  DrawRect: TRect;
+  PrevValueObject: TJkhChartValue;
+
+  FindItemIndex,
+  FindValueIndex: Integer;
+  FindHint: String;
+begin
+  inherited;
+
+  FindItemIndex := -1;
+  FindValueIndex := -1;
+  FindHint := '';
+
+  If FDrawLegend Then
+     BackroundRect := Rect(1, LegendSize, Width-1, Height-1)
+  Else
+     BackroundRect := Rect(1, 1, Width-1, Height-1);
+
+  // Value는 Background 를 참조해서 그려진다.
+  // 일단 존재하는 각 항목을 그리고
+  For ItemLoop := 0 to FChartItem.Count -1 do
+  Begin
+     With FChartItem.Items[ItemLoop] as TJkhChartItem do
+     Begin
+        // 각 아이템을 실제로 그린다.
+        For ItemValueLoop := 0 to ItemValues.Count - 1 do
+           With ItemValues.Items[ItemValueLoop] as TJkhChartValue do
+           Begin
+              If ( X > CurrentPosition.X-(FPaintItemRange div 2) ) and ( X < CurrentPosition.X+(FPaintItemRange div 2) ) and
+                 ( Y > CurrentPosition.Y-(FPaintItemRange div 2) ) and ( Y < CurrentPosition.Y+(FPaintItemRange div 2) )
+              Then
+              Begin
+                 FindItemIndex := ItemLoop;
+                 FindValueIndex := ItemValueLoop;
+                 FindHint := IntToStr(Tag);
+              End;
+           End;
+     End;
+  End;
+
+  if Assigned(FOnItemOnMouse) Then
+     FOnItemOnMouse(Self, FindItemIndex, FindValueIndex, X, Y, FindHint);
 end;
 
 procedure TJkhChartPanel.Paint;

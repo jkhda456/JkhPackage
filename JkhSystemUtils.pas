@@ -40,7 +40,16 @@ type
   PROCESS_DPI_AWARENESS = (
      PROCESS_DPI_UNAWARE,
      PROCESS_SYSTEM_DPI_AWARE,
-     PROCESS_PER_MONITOR_DPI_AWARE
+     PROCESS_PER_MONITOR_DPI_AWARE,
+     PROCESS_PER_MONITOR_DPI_AWARE_V2
+  );
+  DPI_AWARENESS_CONTEXT_UNAWARE = (
+     DPI_AWARENESS_CONTEXT_DEFAULT = 0,
+     // DPI_AWARENESS_CONTEXT_UNAWARE = -1,             //((DPI_AWARENESS_CONTEXT)-1)
+     DPI_AWARENESS_CONTEXT_SYSTEM_AWARE = -2,         //((DPI_AWARENESS_CONTEXT)-2)
+     DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = -3,    //((DPI_AWARENESS_CONTEXT)-3)
+     DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4, //((DPI_AWARENESS_CONTEXT)-4)
+     DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED = -5    //((DPI_AWARENESS_CONTEXT)-5)
   );
   MONITOR_DPI_TYPE = (
      MDT_EFFECTIVE_DPI,
@@ -51,6 +60,7 @@ type
 
   TGetProcessDPIAwareness = function(const hProcess: THandle; var Value: PROCESS_DPI_AWARENESS): HRESULT; stdcall;
   TSetProcessDPIAwareness = function(const Value: PROCESS_DPI_AWARENESS): HRESULT; stdcall;
+  TSetProcessDpiAwarenessContext = function(const Value: DPI_AWARENESS_CONTEXT_UNAWARE): HRESULT; stdcall;
   TGetDpiForMonitor = function(hMonitor: HMONITOR; dpiType: MONITOR_DPI_TYPE; var dpiX: UINT; var dpiY: UINT): HRESULT; stdcall;
 
 // recommend use JclSysInfo.pas ...
@@ -59,6 +69,7 @@ function UsingWinNT: Boolean;
 function UsingWin81Upper: Boolean;
 
 function SetProcessDPIAwareness(ALevel: PROCESS_DPI_AWARENESS): Boolean;
+function SetProcessDpiAwarenessContext(ALevel: DPI_AWARENESS_CONTEXT_UNAWARE): Boolean;
 function GetCurrentDPI(ATargetHandle: THandle): Integer;
 
 procedure MakeSystemInfoFolder(ATargetFolder, ATargetInfo: String);
@@ -139,6 +150,28 @@ begin
   End;
 end;
 
+function SetProcessDpiAwarenessContext(ALevel: DPI_AWARENESS_CONTEXT_UNAWARE): Boolean;
+var
+  SetAwarenessContext: TSetProcessDpiAwarenessContext;
+  UserLib: THandle;
+begin
+  Result := False;
+
+  UserLib := LoadLibrary('User32.dll');
+  Try
+     If UserLib = 0 Then Exit;
+
+     SetAwarenessContext := TSetProcessDpiAwarenessContext(GetProcAddress(UserLib, 'SetProcessDpiAwarenessContext'));
+     If Assigned(SetAwarenessContext) Then
+     Begin
+        SetAwarenessContext(ALevel);
+        Result := True;
+     End;
+  Finally
+     FreeLibrary(UserLib);
+  End;
+end;
+
 function GetCurrentDPI(ATargetHandle: THandle): Integer;
 var
   MainDC: HDC;
@@ -212,8 +245,17 @@ begin
 
      PathMakeSystemFolder(PChar(ATargetFolder));
 
+     {
+        [.ShellClassInfo]
+        ConfirmFileOp=0
+        NoSharing=1
+        IconFile=iconfile.ico
+        IconIndex=0
+        InfoTip=Some sensible information.
+     }
+
      Buffer := '[{F29F85E0-4FF9-1068-AB91-08002B27B3D9}]'#13#10+
-               'Prop2='+ATargetInfo;
+               'Prop2=' + ATargetInfo + #13#10;
      DesktopFile.Write(Buffer[1], Length(Buffer));
   Finally
      DesktopFile.Free;
@@ -228,3 +270,4 @@ finalization
   FreeShCoreLib;
 
 end.
+
