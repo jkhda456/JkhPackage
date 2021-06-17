@@ -62,6 +62,7 @@ type
   TSetProcessDPIAwareness = function(const Value: PROCESS_DPI_AWARENESS): HRESULT; stdcall;
   TSetProcessDpiAwarenessContext = function(const Value: DPI_AWARENESS_CONTEXT_UNAWARE): HRESULT; stdcall;
   TGetDpiForMonitor = function(hMonitor: HMONITOR; dpiType: MONITOR_DPI_TYPE; var dpiX: UINT; var dpiY: UINT): HRESULT; stdcall;
+  TPathMakeSystemFolder = function(pszPath: LPSTR): BOOL; stdcall;
 
 // recommend use JclSysInfo.pas ...
 function GetOSVersionInfo(var VersionInfo : TOSVersionInfo): Boolean;
@@ -224,7 +225,7 @@ end;
 
 procedure MakeSystemInfoFolder(ATargetFolder, ATargetInfo: String);
 var
-  PathMakeSystemFolder: function(pszPath: LPSTR): BOOL; stdcall;
+  PathMakeSystemFolder: TPathMakeSystemFolder; // function(pszPath: LPSTR): BOOL; stdcall;
   ShlwAPI: HMODULE;
   DesktopFile: TFileStream;
   Buffer: String;
@@ -240,7 +241,7 @@ begin
   If ShlwAPI = 0 Then Exit;
   DesktopFile := TFileStream.Create(ATargetFolder+'Desktop.ini', fmCreate);
   Try
-     PathMakeSystemFolder := GetProcAddress(ShlwAPI, 'PathMakeSystemFolderA');
+     PathMakeSystemFolder := TPathMakeSystemFolder(GetProcAddress(ShlwAPI, 'PathMakeSystemFolderA'));
      If @PathMakeSystemFolder = Nil Then Exit;
 
      PathMakeSystemFolder(PChar(ATargetFolder));
