@@ -1033,6 +1033,8 @@ procedure TJkhTabControl.SetTabIndex(const Value: Integer);
 var
   LoopVar: Integer;
 begin
+  If FTabIndex = Value Then Exit;
+
   FTabIndex := -1;
   FActivePage := Nil;
 
