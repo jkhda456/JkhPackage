@@ -77,6 +77,7 @@ type
     FDropdownImage: TPicture;
     FDisabledDropdownImage: TPicture;
     FAlignment: TAlignment;
+    FBlockClick: Boolean;
 
     procedure SetDown(const Value: Boolean);
     procedure SetFlat(const Value: Boolean);
@@ -142,7 +143,7 @@ type
 
     property ImageSizeLimit: Integer read FImageSizeLimit write SetImageSizeLimit;
 
-    property AutoResizeText: Boolean read FAutoResizeText write SetAutoResizeText default True; 
+    property AutoResizeText: Boolean read FAutoResizeText write SetAutoResizeText default True;
     property Focused: Boolean read FFocused write SetFocused default False;
     property Layout: TJkhButtonLayout read FLayout write SetLayout default blBottomLeft;
     property Alignment: TAlignment read FAlignment write SetAlignment default taCenter;
@@ -173,6 +174,7 @@ type
 
     property Cancel: Boolean read FCancel write FCancel default False;
     property Default: Boolean read FDefault write SetDefault default False;
+    property BlockClick: Boolean read FBlockClick write FBlockClick default True; 
 
     property OnClick;
     property OnDblClick;
@@ -197,14 +199,19 @@ end;
 
 procedure TJkhFlatButton.Click;
 begin
-  If FIsDoClick Then Exit;
+  If FBlockClick Then
+  Begin
+     If FIsDoClick Then Exit;
 
-  FIsDoClick := True;
-  Try
-    inherited;
-  Finally
-    FIsDoClick := False;
-  End;
+     FIsDoClick := True;
+     Try
+        inherited;
+     Finally
+        FIsDoClick := False;
+     End;
+  End
+  Else
+     Inherited;
 end;
 
 procedure TJkhFlatButton.CMButtonPressed(var Message: TMessage);
@@ -305,6 +312,7 @@ begin
   FHandle := 0;
   FFocused := False;
   FImageSizeLimit := 0;
+  FBlockClick := True; 
 end;
 
 destructor TJkhFlatButton.Destroy;
