@@ -22,7 +22,7 @@ All rights reserved.
 사용되어서는 안 된다. 
 
 저작권자와 기여자는 이 소프트웨어를 “있는 그대로의” 상태로 제공하며, 상품성 여부나 특정한 목적에 대한 적합성에 대한 묵시적 
-보증을 포함한 어떠한 형태의 보증도 명시적이나 묵시적으로 제공되지 않는다.  손해 가능성을 사전에 알고 있었다 하더라도, 저작권자나 
+보증을 포함한 어떠한 형태의 보증도 명시적이나 묵시적으로 제공되지 않는다.  손해 가능성을 사전에 알고 있었다 하더라도, 저작권자나
 기여자는 어떠한 경우에도 이 소프트웨어의 사용으로 인하여 발생한, 직접적이거나 간접적인 손해, 우발적이거나 결과적 손해, 특수하거나 
 일반적인 손해에 대하여, 그 발생의 원인이나 책임론, 계약이나 무과실책임이나 불법행위(과실 등을 포함)와 관계 없이 책임을 지지 않는다. 
 이러한 조건은 대체 재화나 용역의 구입 및 유용성이나 데이터, 이익의 손실, 그리고 영업 방해 등을 포함하나 이에 국한되지는 않는다.
@@ -134,6 +134,7 @@ type
     FTabPosition: TTabPosition;
     FTabItemWidth: Integer;
     FTabClickEnabled: Boolean;
+    FOnChange: TNotifyEvent;
 
     procedure EraseBkGnd(var Message: TMessage); message WM_EraseBkGnd;
     procedure CMDesignHitTest(var Message: TCMDesignHitTest); message CM_DESIGNHITTEST;
@@ -232,6 +233,8 @@ type
     property OnResize;
 
     property OnLogoClick: TNotifyEvent read FOnLogoClick write FOnLogoClick;
+
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
   end;
 
 procedure Register;
@@ -1033,7 +1036,10 @@ procedure TJkhTabControl.SetTabIndex(const Value: Integer);
 var
   LoopVar: Integer;
 begin
-  If FTabIndex = Value Then Exit;
+  // 이걸 해두면 Zyroid 에서는 다음탭 문제가 있다.
+  // 따라서 SetTabIndex 시에는 동일 탭이 다시 선택되더라도 탭 인덱스를 갱신한다.
+  // 또 히든 상태에서 동작하지 않는 문제도 회피하기 위해서 그냥 매번 갱신.
+  // If FTabIndex = Value Then Exit;
 
   FTabIndex := -1;
   FActivePage := Nil;
@@ -1049,8 +1055,13 @@ begin
         FActivePage.SelectFirst;
         FActivePage.BringToFront;
 
-        If Assigned(FActivePage.FOnSelected) Then
-           FActivePage.FOnSelected(Self);
+        if not (csLoading in ComponentState) Then
+        begin
+           If Assigned(FOnChange) Then
+              FOnChange(Self);
+           If Assigned(FActivePage.FOnSelected) Then
+              FActivePage.FOnSelected(Self);
+        end;
      End
      Else
      Begin
