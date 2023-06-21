@@ -280,12 +280,13 @@ procedure TJkhTabSheet.CreateParams(var Params: TCreateParams);
 begin
   inherited;
   with Params.WindowClass do
-    style := style and not (CS_HREDRAW or CS_VREDRAW);
+     style := style and not (CS_HREDRAW or CS_VREDRAW);
 end;
 
 destructor TJkhTabSheet.Destroy;
 begin
-  If FTabControl <> Nil Then
+  // 이쪽이 TabControl 보다 먼저 Free 되어 있을것이기 때문에.
+  If (FTabControl <> Nil) and (not (csDestroying in ComponentState)) Then
      FTabControl.RemovePage(Self);
   FCaptionImage.Free;
 
@@ -343,6 +344,7 @@ end;
 procedure TJkhTabSheet.SetTabControl(const Value: TJkhTabControl);
 begin
   If FTabControl = Value Then Exit;
+  if (csDestroying in ComponentState) then Exit;
 
   // 굳이 Parent 를 쓰더라도 이건 꼭 써야 한다.
   FTabControl := Value;
@@ -431,6 +433,7 @@ end;
 destructor TJkhTabControl.Destroy;
 begin
   FPages.Free;
+  FPages := Nil;
   FLogoImage.Free;
 
   inherited;
@@ -935,6 +938,7 @@ var
   LoopVar: Integer;
 begin
   FActivePage := Nil;
+  If FPages = Nil Then Exit;
 
   For LoopVar := FPages.Count-1 DownTo 0 do
   Begin
@@ -1040,9 +1044,9 @@ begin
   // 따라서 SetTabIndex 시에는 동일 탭이 다시 선택되더라도 탭 인덱스를 갱신한다.
   // 또 히든 상태에서 동작하지 않는 문제도 회피하기 위해서 그냥 매번 갱신.
   // If FTabIndex = Value Then Exit;
-
   FTabIndex := -1;
   FActivePage := Nil;
+  If Value = -1 Then Exit;
 
   For LoopVar := 0 to FPages.Count -1 do
   Begin
