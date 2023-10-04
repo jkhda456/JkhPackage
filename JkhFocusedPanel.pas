@@ -33,7 +33,7 @@ unit JkhFocusedPanel;
 interface
 
 uses
-  SysUtils, Classes, Controls, ExtCtrls;
+  Windows, SysUtils, Classes, Messages, Controls, ExtCtrls;
 
 type
   TJkhFocusedPanel = class(TCustomPanel)
@@ -42,6 +42,8 @@ type
     FOnFocused: TNotifyEvent;
 
     procedure CMFocusChanged(var Message: TCMFocusChanged); message CM_FOCUSCHANGED;
+
+    procedure WMNCCalcSize(var Msg: TWMNCCalcSize); // message WM_NCCALCSIZE;
   protected
   public
     property DockManager;
@@ -131,6 +133,20 @@ begin
   Begin
      If Assigned(FOnKillFocused) Then FOnKillFocused(Self);
   End;
+end;
+
+procedure TJkhFocusedPanel.WMNCCalcSize(var Msg: TWMNCCalcSize);
+var
+  lpncsp: PNCCalcSizeParams;
+begin
+  //if Msg.CalcValidRects then
+  begin
+    lpncsp := Msg.CalcSize_Params;
+    if lpncsp = nil then Exit;
+    lpncsp.rgrc[0].Top:= lpncsp.rgrc[0].Top-30;
+    Msg.Result := 0;
+  end;
+  inherited;
 end;
 
 end.

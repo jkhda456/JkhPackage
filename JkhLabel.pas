@@ -54,12 +54,14 @@ type
     FFontWeight: TJkhFontWeight;
     FFixedDPI: Integer;
     FFontStrike: Boolean;
+    FAutoResizeText: Boolean;
     procedure SetFontColor(const Value: TColor);
     procedure SetFontFace(const Value: String);
     procedure SetFontSize(const Value: Integer);
     procedure SetFontWeight(const Value: TJkhFontWeight);
     procedure SetFixedDPI(const Value: Integer);
     procedure SetFontStrike(const Value: Boolean);
+    procedure SetAutoResizeText(const Value: Boolean);
   protected
     procedure DoDrawText(var Rect: TRect; Flags: Longint); override;
     procedure AdjustBounds; override;
@@ -71,12 +73,14 @@ type
     property FontWeight: TJkhFontWeight read FFontWeight write SetFontWeight;
     property FontFace: string read FFontFace write SetFontFace;
     property FontColor: TColor read FFontColor write SetFontColor;
-    property FontStrike: Boolean read FFontStrike write SetFontStrike; 
+    property FontStrike: Boolean read FFontStrike write SetFontStrike;
 
     property Align;
     property Alignment;
     property Anchors;
     property AutoSize;
+    property AutoResizeText: Boolean read FAutoResizeText write SetAutoResizeText default False;
+
     property BiDiMode;
     property Caption;
     property Color nodefault;
@@ -176,6 +180,10 @@ procedure TJkhLabel.DoDrawText(var Rect: TRect; Flags: Integer);
 var
   Text: string;
   lf: LOGFONT;
+
+  AutoResizeLoop: Integer;
+  ResizeCandidate: Integer;
+  TextBaseSize: TSize;
 begin
   Text := GetLabelText;
   if (Flags and DT_CALCRECT <> 0) and ((Text = '') or ShowAccelChar and
@@ -196,6 +204,28 @@ begin
      lf.lfStrikeOut := 0;
   StrCopy(lf.lfFaceName, PChar(FFontFace));
   Canvas.Font.Handle := CreateFontIndirect(lf);
+
+  If AutoResizeText Then
+  Begin
+     TextBaseSize := Canvas.TextExtent(Caption);
+     If TextBaseSize.cx >= Width Then
+     Begin
+        ResizeCandidate := FFontSize;
+
+        For AutoResizeLoop := 1 to 4 do
+        Begin
+           ResizeCandidate := ResizeCandidate - 1;
+           If ResizeCandidate < 1 Then Break; // 1보다 절대 작을수 없음.
+
+           lf.lfHeight := -MulDiv(ResizeCandidate, FScreenLogPixels, 72);
+           Canvas.Font.Handle := CreateFontIndirect(lf);
+
+           TextBaseSize := Canvas.TextExtent(Caption);
+           If TextBaseSize.cx < Width Then Break;
+        End;
+     End;
+  End;
+
   Canvas.Font.Color := FFontColor;
 
   if not Enabled then
@@ -209,6 +239,12 @@ begin
   end
   else
     DrawText(Canvas.Handle, PChar(Text), Length(Text), Rect, Flags);
+end;
+
+procedure TJkhLabel.SetAutoResizeText(const Value: Boolean);
+begin
+  FAutoResizeText := Value;
+  Invalidate;
 end;
 
 procedure TJkhLabel.SetFixedDPI(const Value: Integer);
